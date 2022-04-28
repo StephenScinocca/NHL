@@ -13,14 +13,15 @@ import sys
 
 def parse_command_line():
     parser = ap.ArgumentParser()
-    parser.add_argument('seasonStart', nargs=1, help='year season started yyyy')
-    parser.add_argument('seasonEnd', nargs=1, help='year season ended yyyy')
+    parser.add_argument('season', nargs=2, help='year of season yyyy yyyy')
+    # parser.add_argument('seasonStart', nargs=1, help='year season started yyyy')
+    # parser.add_argument('seasonEnd', nargs=1, help='year season ended yyyy')
     #parser.add_argument('seasonType', nargs=1, help='R (Regular Season) or P (Playoffs) or Pr (Pre Season)')
 
     args = parser.parse_args()
 
-    seasonStart = args.seasonStart[0]
-    seasonEnd = args.seasonEnd[0]
+    seasonStart = args.season[0]
+    seasonEnd = args.season[1]
     #seasonType = args.seasonType[0]
 
 
@@ -38,13 +39,17 @@ def reset_shot_dict():
             "y": "NA",
             "period": "NA",
             "periodTime": "NA",
-            "date": "NA"
+            "date": "NA",
+            "emptyNet": "NA",
+            "strength": "NA",
+            "gameID": "NA"
             }
     return shot_dict
 
-def set_shot_dict(shot_dict, shot, current_date):
+def set_shot_dict(shot_dict, shot, current_date, game_id):
     shot_dict['eventTypeId'] = shot['result']['eventTypeId']
     shot_dict['shooterTeamID'] = shot['team']['id']
+    shot_dict['gameID'] = game_id
     try:
         shot_dict['x'] = shot['coordinates']['x']
         shot_dict['y'] = shot['coordinates']['y']
@@ -61,8 +66,11 @@ def set_shot_dict(shot_dict, shot, current_date):
     shot_dict['period'] = shot['about']['period']
     shot_dict['periodTime'] = shot['about']['periodTime']
     shot_dict['date'] = current_date
+    if shot["result"]["eventTypeId"] == "GOAL":
+        shot_dict["emptyNet"] = shot["result"]["emptyNet"]
+        shot_dict["strength"] = shot["result"]["strength"]["code"]
     return shot_dict
-    
+
 
 def download(link, num_retries=2):
     # print('Downloading:', link)
@@ -79,7 +87,7 @@ def download(link, num_retries=2):
                 return 0
     return html
 # game_id = 2018030417
-# game_id_shootout = 2018010039 
+# game_id_shootout = 2018010039
 
 seasonStart, seasonEnd = parse_command_line()
 print(seasonStart)
@@ -87,9 +95,13 @@ print(seasonEnd)
 
 games = ()
 schedule_link = 'https://statsapi.web.nhl.com/api/v1/schedule?startDate=08/01/{}&endDate=08/01/{}&expand=schedule.teams,schedule.linescore'.format(seasonStart, seasonEnd)
+if seasonStart == 2019:
+    schedule_link = 'https://statsapi.web.nhl.com/api/v1/schedule?startDate=08/01/{}&endDate=09/28/{}&expand=schedule.teams,schedule.linescore'.format(seasonStart, seasonEnd)
+elif seasonStart == 2020:
+    schedule_link = 'https://statsapi.web.nhl.com/api/v1/schedule?startDate=12/01/{}&endDate=07/31/{}&expand=schedule.teams,schedule.linescore'.format(seasonStart, seasonEnd)
 schedule_data = download(schedule_link)
 
-header_shot = "eventTypeId,shooterID,shooterName,shooterTeamID,goalieID,goalieName,x,y,period,periodTime,date,gameType"
+header_shot = "eventTypeId,shooterID,shooterName,shooterTeamID,goalieID,goalieName,x,y,period,periodTime,date,emptyNet,strength,gameType"
 counter = 0
 shot_d = reset_shot_dict()
 with open("data/shots_{}_{}.csv".format(seasonStart, seasonEnd), "w") as f:
@@ -104,19 +116,16 @@ with open("data/shots_{}_{}.csv".format(seasonStart, seasonEnd), "w") as f:
             data = download(link)
             plays = data['liveData']['plays']['allPlays']
             gameType = data['gameData']['game']['type']
-            
+
             for i in plays:
                 # counter +=1
                 if i['result']['eventTypeId'] == "SHOT" or i['result']['eventTypeId'] == "GOAL":
                     if i['about']['periodType'] != "SHOOTOUT":
                         # print(counter)
                         # counter +=1
-                        shot_d = set_shot_dict(shot_d, i, current_date)
+                        shot_d = set_shot_dict(shot_d, i, current_date, game_id)
                         for j in shot_d:
                             # print(shot_d[j])
                             f.write("{},".format(shot_d[j]))
                         f.write("{}\n".format(gameType))
                         shot_d = reset_shot_dict()
-                        
-        
-
