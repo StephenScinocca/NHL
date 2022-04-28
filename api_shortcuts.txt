@@ -9,3 +9,5 @@ https://statsapi.web.nhl.com/api/v1/schedule?gamePk=2018030416&expand=schedule.t
 To find a list of all games between start and end date
 https://statsapi.web.nhl.com/api/v1/schedule?startDate=06/01/2019&endDate=06/12/2019&expand=schedule.teams,schedule.linescore
 
+Best game info (play data)
+https://statsapi.web.nhl.com/api/v1/game/2018030417/feed/live
